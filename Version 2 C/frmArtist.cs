@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using System.Collections.Generic;
 
 namespace Version_2_C
 {
@@ -10,13 +11,35 @@ namespace Version_2_C
             InitializeComponent();
         }
 
+        private static Dictionary<clsArtist, frmArtist> _ArtistFormList = new Dictionary<clsArtist, frmArtist>();
+
+        public delegate void Notify(string prGalleryName);
+
+        public event Notify GalleryNameChanged;
+
+        public static void Run(clsArtist prArtist)
+        {
+            frmArtist lcArtistForm;
+            if (!_ArtistFormList.TryGetValue(prArtist, out lcArtistForm))
+            {
+                lcArtistForm = new frmArtist();
+                _ArtistFormList.Add(prArtist, lcArtistForm);
+                lcArtistForm.SetDetails(prArtist);
+            }
+            else
+            {
+                lcArtistForm.Show();
+                lcArtistForm.Activate();
+            }
+        }
+
         private clsArtist _Artist;
         private clsWorksList _WorksList;
 
 
         private void updateDisplay()
         {
-            txtName.Enabled = txtName.Text == "";
+            //txtName.Enabled = txtName.Text == "";
             if (_WorksList.SortOrder == 0)
             {
                 _WorksList.SortByName();
@@ -36,9 +59,12 @@ namespace Version_2_C
         public void SetDetails(clsArtist prArtist)
         {
             _Artist = prArtist;
+            txtName.Enabled = string.IsNullOrEmpty(_Artist.Name);
             updateForm();
             updateDisplay();
-            ShowDialog();
+            Show();
+            frmMain.Instance.GalleryNameChanged += new frmMain.Notify(updateTitle);
+            updateTitle(_Artist.ArtistList.GalleryName);
         }
 
         private void updateForm()
@@ -47,6 +73,11 @@ namespace Version_2_C
             txtSpeciality.Text = _Artist.Speciality;
             txtPhone.Text = _Artist.Phone;
             _WorksList = _Artist.WorksList;
+        }
+        private void updateTitle(string prGalleryName)
+        {
+            if (!string.IsNullOrEmpty(prGalleryName))
+                Text = "Artist Details - " + prGalleryName;
         }
 
         private void pushData()
@@ -80,10 +111,22 @@ namespace Version_2_C
         private void btnClose_Click(object sender, EventArgs e)
         {
             if (isValid() == true)
-            {
-                pushData();
-                Close();
-            }
+                try
+                {
+                    pushData();
+                    if (txtName.Enabled)
+                    {
+                        _Artist.NewArtist();
+                        MessageBox.Show("Artist added!", "Success");
+                        frmMain.Instance.updateDisplay();
+                        txtName.Enabled = false;
+                    }
+                    Hide();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
         }
 
         private Boolean isValid()

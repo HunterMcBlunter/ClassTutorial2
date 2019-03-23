@@ -3,31 +3,44 @@ using System.Windows.Forms;
 
 namespace Version_2_C
 {
-    public partial class frmMain : Form
+    sealed partial class frmMain : Form
     {
-        public frmMain()
+        private frmMain()
         {
             InitializeComponent();
         }
 
+        private static readonly frmMain _Instance = new frmMain();
+
+        public delegate void Notify(string prGalleryName);
+
+        public event Notify GalleryNameChanged;
+
         private clsArtistList _ArtistList = new clsArtistList();
 
-        private void updateDisplay()
+        public static frmMain Instance => _Instance;
+
+        public void updateDisplay()
         {
             lstArtists.DataSource = null;
             string[] lcDisplayList = new string[_ArtistList.Count];
             _ArtistList.Keys.CopyTo(lcDisplayList, 0);
             lstArtists.DataSource = lcDisplayList;
             lblValue.Text = Convert.ToString(_ArtistList.GetTotalValue());
+            lblGalleryName.Text = Convert.ToString(_ArtistList.GalleryName);
         }
+
+        private void updateTitle(string prGalleryName)
+        {
+            if (!string.IsNullOrEmpty(prGalleryName))
+                Text = "Gallery - " + prGalleryName;
+        }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
             try
             {
-                _ArtistList.NewArtist();
-                MessageBox.Show("Artist added!", "Success");
-                updateDisplay();
+                frmArtist.Run(new clsArtist(_ArtistList));
             }
             catch (Exception ex)
             {
@@ -43,8 +56,7 @@ namespace Version_2_C
             if (lcKey != null)
                 try
                 {
-                    _ArtistList.EditArtist(lcKey);
-                    updateDisplay();
+                    frmArtist.Run(_ArtistList[lcKey]);
                 }
                 catch (Exception ex)
                 {
@@ -95,6 +107,15 @@ namespace Version_2_C
             {
                 MessageBox.Show(ex.Message, "File retrieve error");
             }
+            updateDisplay();
+            GalleryNameChanged += new Notify(updateTitle);
+            GalleryNameChanged(_ArtistList.GalleryName); // event raising!
+        }
+
+        private void btn_Gallery_Click(object sender, EventArgs e)
+        {
+            _ArtistList.GalleryName = new InputBox("Enter gallery name").Answer;
+            GalleryNameChanged(_ArtistList.GalleryName);
             updateDisplay();
         }
     }
